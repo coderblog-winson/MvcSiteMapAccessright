@@ -1,0 +1,94 @@
+﻿@*Doc for SiteMap Provider:https://github.com/maartenba/MvcSiteMapProvider/wiki*@
+@model MvcSiteMapProvider.Web.Html.Models.MenuHelperModel
+@using System.Web.Mvc.Html
+@using MvcSiteMapProvider.Web.Html.Models
+
+
+
+@helper  TopMenu(List<SiteMapNodeModel> nodeList)
+{
+foreach (SiteMapNodeModel node in nodeList)
+{
+    string url = node.IsClickable ? node.Url : "#";
+    var currentCss = "";
+
+    if (!node.Children.Any())
+    {
+        if (!node.IsRootNode)
+        {
+            if (node.IsCurrentNode)
+            {
+                currentCss = "active open";
+            }
+
+            <li class="@currentCss hover"><a href="@url"> <span class="menu-text"> @node.Title </span></a> <b class="arrow"></b></li>
+        }
+    }
+    else
+    {
+
+        if (node.Children.Where(c => c.IsInCurrentPath).Any())
+        {
+            currentCss = "active open";
+        }
+        <li class="@currentCss hover">
+            <a href="#" data-toggle="dropdown" >
+                <span class="menu-text"> @node.Title </span> <b class="arrow fa fa-angle-down"></b>
+            </a>
+            <b class="arrow"></b>
+            @DropDownMenu(node.Children)
+        </li>
+    }
+
+
+        @*if (node != nodeList.Last())
+            {
+                    <li class="divider-vertical"></li>
+            }*@
+}
+}
+
+@helper DropDownMenu(SiteMapNodeModelList nodeList)
+{
+    <ul class="dropdown-menu">
+        @foreach (SiteMapNodeModel node in nodeList)
+        {
+
+
+            if (node.Title == "Separator")
+            {
+                <li role="separator" class="divider"></li>
+                continue;
+            }
+
+            string url = node.IsClickable ? node.Url : "#";
+            var currentCss = "";
+            if (!node.Children.Any())
+            {
+                if (node.IsInCurrentPath)
+                {
+                    currentCss = "active";
+                }
+                <li class="@currentCss hover"><a href="@url"> <span class="menu-text"> @node.Title </span></a> <b class="arrow"></b></li>
+            }
+            else
+            {
+                if (node.Children.Where(c => c.IsInCurrentPath).Any())
+                {
+                    currentCss = "active open";
+                }
+
+                <li class="@currentCss hover">
+                    <a href="@url" class="dropdown-toggle">
+                        <span class="menu-text"> @node.Title </span> <b class="arrow fa fa-angle-down"></b>
+                    </a>
+                    <b class="arrow"></b>
+                    @DropDownMenu(node.Children)
+                </li>
+            }
+
+        }
+    </ul>
+}
+
+@TopMenu(Model.Nodes)

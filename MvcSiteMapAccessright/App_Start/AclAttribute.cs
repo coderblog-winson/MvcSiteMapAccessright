@@ -6,6 +6,7 @@ using System.Web;
 using System.Web.Mvc;
 using System.Xml.Linq;
 using System.Web.Routing;
+using System.Web.Caching;
 
 namespace MvcSiteMapAccessright
 {
@@ -27,26 +28,50 @@ namespace MvcSiteMapAccessright
             var currentAction = filterContext.RouteData.Values["Action"].ToString();
 
 
-            var isAuthenticated = true;
+            //cache the authenticated status
+            var cacheKey = CreateKey(filterContext).ToLower();
+            var isCached = HttpRuntime.Cache.Get(cacheKey);
 
-            //get the menu item from sitemap xml for access right checking
-            XElement doc = RemoveAllNamespaces(XDocument.Load(HttpContext.Current.Server.MapPath("~/Mvc.sitemap")).Root);
-            var currentNode = (from el in doc.Descendants("mvcSiteMapNode")
+            //ignore the 'ajax' action url
+            if (isCached != null || cacheKey.Contains("ajax")) return;
+
+            //get the menu item from site-map xml for access right checking
+            var siteMapDoc = RemoveAllNamespaces(XDocument.Load(HttpContext.Current.Server.MapPath("~/Mvc.sitemap")).Root);
+
+            var currentNode = (from el in siteMapDoc.Descendants("mvcSiteMapNode")
                                where (string)el.Attribute("controller") == currentController &&
                                (string)el.Attribute("action") == currentAction && el.Attribute("clickable") == null
                                select el).FirstOrDefault();
 
+            var isAuthenticated = true;
             //check AccessRightExpr
             if (currentNode != null)
             {
                 isAuthenticated = CheckMenuItemRight(currentNode);
             }
+            CacheDependency cd = new CacheDependency(HttpContext.Current.Server.MapPath("~/Mvc.sitemap"));
+            HttpRuntime.Cache.Insert(cacheKey, true, cd);
+
 
             if (!isAuthenticated)
             {
                 filterContext.Result = new RedirectToRouteResult(new RouteValueDictionary(new { controller = "Home", action = "AccessDenied" }));
             }
 
+        }
+
+        /// <summary>
+        /// Generate the cache key
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        private string CreateKey(AuthorizationContext context)
+        {
+            // Or create some other unique key that allows you to identify 
+            // the same request
+            return
+                context.RequestContext.HttpContext.User.Identity.Name + "|" +
+                context.RequestContext.HttpContext.Request.Url.AbsoluteUri;
         }
 
         /// <summary>
